@@ -1,0 +1,65 @@
+# stage 1: set up expected directory structure
+# and check that jobname doesn't already exist
+jobname = "leighton2_no3mx_2x_simplified2"
+schrodinger_path = "/opt/schrodinger2022-4"
+acrab_path = "/home/clarkf/aptamer/pretty"
+base_python_path = "/home/clarkf/anaconda3/bin/python" 
+conda_shell = "/home/clarkf/anaconda3/etc/profile.d/conda.sh" 
+mda_shell = "/home/clarkf/anaconda3/envs/mda/bin/python" 
+
+# stage 2: secondary structure prediction
+#s2_protocol = "s2/method_1.sh"
+s2_protocol = "s2/method_1.sh"
+s2_helpers = "s2/bpseq2dotb.py" 
+# comma separated list for more than 1 helper
+sequence = "GGCTCTCGGGACGACTAATGGTCTCACAACGCTGAGGATTCCTTGGTCGTCCCTG"
+
+SPOT-RNA_path = "/home/clarkf/SPOT-RNA"
+MCFold_path = "/usr/local/share"
+
+# stage 3: tertiary structure prediction
+s3_protocol = "s3/method_1.py"
+s3_schrodinger = false 
+# whether to use schrodinger python interpreter for this stage                      
+#s3_helpers = "s3/mcsym_script_1.mcc"
+s3_helpers = "s3/mcpdb2mae.py,s3/proteinprep.sh"
+MC-Symizer_path = "/usr/local/share/MC-Symizer-master/src"
+MC-Sym_path = "/usr/local/share"
+
+# stage 4: surface-based docking with rxdock
+s4_protocol = "s4/method_1.sh"
+s4_helpers = """s4/onetime_make_prm.py,s4/multi_lig_sd_stage_5_prep.py,\
+                s4/self_dock_surface.py,s4/mol2sd_converter.py,\
+                s4/137-TMU.sd,s4/13-DMX.sd,s4/1-MX.sd,s4/3-MX.sd,\
+                s4/137-TMX.sd,s4/17-DMU.sd,s4/37-DMU.sd,s4/7-MX.sd,\
+                s4/13-DMU.sd,s4/17-DMX.sd,s4/37-DMX.sd"""
+s4_schrodinger = false
+# stage 5: random local optimization of poses
+s5_protocol = "s5/dave.sh"
+s5_schrodinger = false
+s5_helpers = """s5/check_condition.py,s5/mol2tomae.py,s5/rotate_loop.py,\
+                s5/mol2tosd.py,s5/align.py,s5/check_condition_helper.sh,\
+                s5/137-TMU.sd,s5/13-DMX.sd,s5/1-MX.sd,s5/3-MX.sd,\
+                s5/137-TMX.sd,s5/17-DMU.sd,s5/37-DMU.sd,s5/7-MX.sd,\
+                s5/13-DMU.sd,s5/17-DMX.sd,s5/37-DMX.sd"""
+# just put all of the information here*****, will decide
+# what do with it later. This gives us the flexibility
+# of treating this experimental information in different ways.
+# putting dissociation constants (in micromolar) here
+# I JUST MADE UP THESE VALUES TO FOLLOW THE QUALITATIVE
+# TREND OBSERVED EXPERIMENTALLY BECAUSE I REALIZED I DON'T
+# HAVE THE ACTUAL BINDING CONSTANTS
+# ***** probably will separate 17-DMU and 3-MX parts for
+# leighton 2. But this is leighton3
+[affinity_info]
+17-DMU = 4
+7-MX = 1000
+17-DMX = 1001
+37-DMX = 1002
+3-MX = 1008
+1-MX = 1007
+37-DMU = 1003
+13-DMU = 1004
+137-TMU = 1005
+137-TMX = 1006
+13-DMX = 1009
