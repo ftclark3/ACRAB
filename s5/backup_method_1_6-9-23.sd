@@ -1,0 +1,123 @@
+#!/bin/bash
+source $1 # conda shell
+SCHRODINGER_PATH=$5 # schrodinger python interpreter
+AFFINITY_INFO=${10}
+ 
+AFFINITY_INFO_TRIM_1="${AFFINITY_INFO#{\'}" # delete shortest match of literal {' from begining
+AFFINITY_INFO_TRIM_2="${AFFINITY_INFO_TRIM_1%\}}" # delete shortest match of literal } from end
+# vim doing incorrect syntax highlighting here, the ' is escaped correctly
+AFFINITY_INFO=$AFFINITY_INFO_TRIM_2
+top_ligand="${AFFINITY_INFO_TRIM_1%%\':*}" # delete longest match of expansion ':* from end
+top_ligand_array=("$top_ligand")
+# going to pass AFFINITY_INFO to the python programs
+# and make them parse it themselves
+# at this point, its just a comma-separated list of key:value
+# with keys likely in literal single quotes
+
+
+for file in $( ls ../s4/*-*-*.sd ); do
+  file_name="${file##*\/}"
+  if [[ "$file_name" == *"$top_ligand"* ]]; then continue; fi
+  # shortest match of expression */ from beginning 
+  # (so the file path excluding the name)
+
+  # we're going to put each ligand in its own directory
+  mkdir "${file_name%.sd}"
+  cd "${file_name%.sd}"
+  echo "100" > scores.txt # an initial threshold
+  # the first accepted docking score must be lower than 100
+  # pretty much anything should be lower, so this isn't very restrictive
+  #cp "../$file" ./"${file_name%.sd}"_run0.sd
+  #cp "../$file" ./"${top_ligand}"_run0.sd
+  cp "../$file" ./"${top_ligand}".sd
+  cp ${top_ligand}.sd ${top_ligand}_run0.sd # so we can look at it later
+  # just getting putting the result from previous run
+  # here under a different name, to make it easier 
+  # in the future
+  # we grep $top_ligand because the ligand name could 
+  # have a hyphen in it, but we don't want to include files
+  # with the ligand name because they're redundant and in a
+  # form that I'm not prepared to deal with (they contain 
+  # multiple structures per file, and I want one structure
+  # per file)
+  # now we need to make a parameter file for each of our first ligands
+  # remove the last - and everything after it to get the receptor name
+
+
+
+  #receptor_name="${file_name%\-*}".mol2
+  #${SCHRODINGER_PATH}/run ../mol2tomae.py ../../s3/$receptor_name
+  receptor_name="${file_name%\-*}".mae 
+  cp "../../s3/${receptor_name}" ./${receptor_name%.mae}_run0.mae
+  cp "../../s3/${receptor_name%.mae}.mol2" ./${receptor_name%.mae}_run0.mol2
+  
+  flag=0
+  run=0
+  SECONDS=0 # for timing
+  while [ $flag -eq 0 ]; do
+    use_prev=0
+    if [ $run -eq 3 ]; then break; fi # stop at maximum number of runs
+    if [ $SECONDS -gt 300 ]; then break; fi # stop if it's taking too long
+    # might need time constraint also
+    if test -f prev_used; then use_prev=1; fi
+    # modify receptor
+    #"$SCHRODINGER_PATH"/run python3 ../rotate_loop.py ${file_name%.sd}_run${run}.sd "${receptor_name%.*}"_run${run}.mae $use_prev $top_ligand
+    #"$SCHRODINGER_PATH"/run python3 ../rotate_loop.py ${top_ligand}_run${run}.sd "${receptor_name%.*}"_run${run}.mae $use_prev $top_ligand
+    "$SCHRODINGER_PATH"/run python3 ../rotate_loop.py ${top_ligand}.sd "${receptor_name%.*}"_run${run}.mae $use_prev $top_ligand
+
+    
+    # now, we need to make a parameter file for the next round of docking
+    echo "RBT_PARAMETER_FILE_V1.00
+TITLE basic_dock
+
+RECEPTOR_FILE ${receptor_name%.*}_run${run}_intermediate.mol2
+RECEPTOR_FLEX 3.0
+
+##############################################
+## CAVITY DEFINITION: REFERENCE LIGAND METHOD
+##############################################
+SECTION MAPPER
+    SITE_MAPPER RbtLigandSiteMapper
+    REF_MOL ${top_ligand}.sd
+    RADIUS 6.0
+    SMALL_SPHERE 1.0
+    MIN_VOLUME 100
+    MAX_CAVITIES 1
+    VOL_INCR 0.0
+    MIN_VOLUME 100
+    GRIDSTEP 0.5
+END_SECTION
+
+############################
+## CAVITY RESTRAINT PENALTY
+############################
+SECTION CAVITY
+    SCORING_FUNCTION RbtCavityGridSF
+    WEIGHT 1.0
+END_SECTION" > "${top_ligand}".prm
+    rbcavity -r "${top_ligand}".prm -W >> foo
+    #rbdock -r "${top_ligand}".prm -i ${top_ligand}.sd -p dock.prm -n 5 -o "${top_ligand}"_intermediate >> foo
+    rbdock -r "${top_ligand}".prm -i ${top_ligand}.sd -p dock.prm -n 5 -o "${top_ligand}"_intermediate >> foo
+    "$SCHRODINGER_PATH"/run ../check_condition.py "$AFFINITY_INFO" ${run} ${top_ligand_array} ${receptor_name%.*}_run${run}_intermediate.mol2
+    if test -f goodtogo
+    then
+      rm goodtogo
+      cp ${receptor_name%.*}_run${run}_intermediate.mol2 ${receptor_name%.*}_run$(( $run + 1 )).mol2
+      cp ${receptor_name%.*}_run${run}_intermediate.mae ${receptor_name%.*}_run$(( $run + 1 )).mae 
+      #cp "${top_ligand}"_intermediate.sd ${top_ligand}_run$(( $run + 1 )).sd 
+      cp "${top_ligand}"_intermediate.sd ${top_ligand}.sd
+      cp ${top_ligand}.sd ${top_ligand}_run$(( $run + 1 )).sd # saving it so we can view it later 
+      #cp ${receptor_name%.*}_run${run}_intermediate.mae "${receptor_name%.*}".mae
+      rm ${receptor_name%.*}_run${run}_intermediate.mae # don't need this anymore
+      rm ${receptor_name%.*}_run${run}_intermediate.mol2 # don't need this anymore
+      run=$(( $run + 1 ))    
+      continue
+  else
+    #exit #temporary
+    continue
+  fi
+
+  done
+  cd ..
+done
+
