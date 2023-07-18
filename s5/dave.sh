@@ -17,6 +17,7 @@ top_ligand_array=("$top_ligand")
 # delete the ligand sd files that we don't like (because they're too close to the stem)
 # from the s4 directory
 ${SCHRODINGER_PATH}/run remove_stem_poses.py ../s4 $top_ligand
+#${SCHRODINGER_PATH}/run remove_bad_energy_receptors.py ../s4 $top_ligand MOVED THIS TO S4
 
 # Concurrency limit
 MAX_POOL_SIZE=3
@@ -40,7 +41,7 @@ function_name() {
       echo $f > scores.txt
       break
     fi
-    if [[ "$f" == ">  <SCORE>" ]]; then 
+    if [[ "$f" == ">  <SCORE.INTER>" ]]; then 
       read_flag=1
     else
       read_flag=0
