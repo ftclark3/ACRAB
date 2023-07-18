@@ -13,6 +13,8 @@ top_ligand = sys.argv[2]
 for file in os.listdir(base_path):
     if file[-3:] != ".sd":
         continue
+    else:
+        file = file[:-3]
     if top_ligand in file:
         continue    
     if '_' not in file: 
@@ -23,14 +25,14 @@ for file in os.listdir(base_path):
     useful_part = underscore_divided[1]
     useful_part_split = useful_part.split('-')
     try:
-        useful_part[0] = int(useful_part_split[0])
-        useful_part[1] = int(useful_part_split[1])
-        useful_part[2] = int(useful_part_split[2])
+        useful_part_split[0] = int(useful_part_split[0])
+        useful_part_split[1] = int(useful_part_split[1])
+        useful_part_split[2] = int(useful_part_split[2])
     except ValueError:
         continue
 
     # if we made it this far, it's a good file!
-    
+
     # Acceptable range of residues
     start_acc = 16
     stop_acc = 45
@@ -46,8 +48,8 @@ for file in os.listdir(base_path):
     acc_list = [int(i) for i in acc_list_floats]
 
     # Input files
-    DNA_file = f"../s3/{underscore_divided[0]}_{useful_part[0]}-{useful_part[1]}.mae"
-    Ligand_file = file
+    DNA_file = f"../s3/{underscore_divided[0]}_{useful_part_split[0]}-{str(useful_part_split[1]).rjust(4,'0')}.mae"
+    Ligand_file = f"{base_path}/{file}.sd"
 
     # Import structures
     DNAst = structure.StructureReader.read(DNA_file)
@@ -78,6 +80,10 @@ for file in os.listdir(base_path):
         if residue_number in acc_list:
             is_acceptable = True
 
+    #print(f'base_path: {base_path}',flush=True)
+    #print(f'top_ligand: {top_ligand}',flush=True)
+    #print(is_acceptable,flush=True)
+    #print(file,flush=True)
     # Remove unacceptable files
     if not is_acceptable:
-        os.remove(f"{base_path}/{file}")
+        os.remove(f"{base_path}/{file}.sd")
